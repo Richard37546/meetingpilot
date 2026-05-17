@@ -5,6 +5,7 @@ export default function AiAssistantPanel({ meeting, records, actions, stats, onG
   const riskyActions = actions.filter((item) => item.status === '有风险');
   const openQuestions = records.filter((item) => item.type === '待确认问题');
   const nextFocus = generateNextMeetingFocus(records, actions);
+  const isEmptyMeeting = !records.length && !actions.length;
 
   return (
     <aside className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto lg:pb-2 lg:pr-1 scrollbar-thin">
@@ -16,7 +17,9 @@ export default function AiAssistantPanel({ meeting, records, actions, stats, onG
         <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
           <p className="text-xs font-semibold text-brand">当前会议判断</p>
           <p className="mt-2 text-sm leading-6 text-ink">
-            {meeting.title} 应围绕会议目标持续收敛讨论，把确认结论沉淀为可追踪行动项。
+            {isEmptyMeeting
+              ? '请先生成准备清单或记录会议内容，系统会基于当前会议给出风险和下一步建议。'
+              : `${meeting.title} 应围绕会议目标持续收敛讨论，把确认结论沉淀为可追踪行动项。`}
           </p>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">

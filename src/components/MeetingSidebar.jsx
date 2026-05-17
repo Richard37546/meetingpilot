@@ -1,12 +1,19 @@
-import { CalendarDays, Pencil, Target, UsersRound } from 'lucide-react';
+import { CalendarDays, CirclePlus, Pencil, Target, UsersRound } from 'lucide-react';
 
-export default function MeetingSidebar({ meeting, activeMeetingId, currentStageLabel, onSelectMeeting, onEditMeeting }) {
+export default function MeetingSidebar({ meeting, activeMeetingId, currentStageLabel, onSelectMeeting, onCreateMeeting, onEditMeeting }) {
   return (
     <aside className="space-y-4">
       <section className="rounded-lg border border-line bg-white p-4 shadow-soft">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-ink">会议列表</h2>
-          <span className="text-xs text-muted">示例数据</span>
+          <button
+            type="button"
+            onClick={onCreateMeeting}
+            className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-brand hover:bg-blue-100"
+          >
+            <CirclePlus size={13} />
+            新建会议
+          </button>
         </div>
         <div className="space-y-2">
           {meeting.meetings.map((item) => (

@@ -369,6 +369,11 @@ function RecordsPanel({
               <p className="mt-2 text-sm leading-6 text-ink">{item.content}</p>
             </div>
           ))}
+          {!records.length && (
+            <p className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-center text-sm text-muted">
+              暂无会议记录，可手动添加或粘贴会议文本后模拟 AI 解析。
+            </p>
+          )}
         </div>
       </Panel>
 
