@@ -143,6 +143,14 @@ export default function App() {
     setRecords((current) => [{ id: Date.now(), ...record }, ...current]);
   };
 
+  const handleImportRecords = (importedRecords) => {
+    setRecords((current) => {
+      const now = Date.now();
+      const nextRecords = importedRecords.map((record, index) => ({ id: now + index, ...record }));
+      return [...nextRecords, ...current];
+    });
+  };
+
   const handleAddAction = (action) => {
     setActions((current) => [{ id: Date.now(), ...action }, ...current]);
   };
@@ -202,6 +210,7 @@ export default function App() {
               onGeneratePrep={handleGeneratePrep}
               onGenerateReport={handleGenerateReport}
               onAddRecord={handleAddRecord}
+              onImportRecords={handleImportRecords}
               onAddAction={handleAddAction}
             />
             <AiAssistantPanel
@@ -215,7 +224,7 @@ export default function App() {
           </section>
 
           <section id="action-board" className="scroll-mt-4 mx-auto max-w-[1600px] px-4 pb-6">
-            <ActionBoard actions={actions} onStatusChange={handleStatusChange} />
+            <ActionBoard meeting={meeting} actions={actions} onStatusChange={handleStatusChange} />
           </section>
         </>
       )}

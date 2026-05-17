@@ -22,9 +22,10 @@ export function generatePrepCard(meeting) {
 }
 
 export function generateReport(meeting, records, actions) {
-  const decisions = records.filter((item) => item.type === '已确认决策').map((item) => item.content);
+  const decisions = records.filter((item) => ['已确认决策', '已确认结论'].includes(item.type)).map((item) => item.content);
   const risks = records.filter((item) => item.type === '风险 / 阻塞').map((item) => item.content);
   const openQuestions = records.filter((item) => item.type === '待确认问题').map((item) => item.content);
+  const recordActionItems = records.filter((item) => ['待办事项', '临时行动项'].includes(item.type)).map((item) => item.content);
   const riskyActions = actions.filter((item) => item.status === '有风险');
 
   return {
@@ -36,7 +37,7 @@ export function generateReport(meeting, records, actions) {
     ],
     decisions: decisions.length ? decisions : ['实时语音转写暂不进入 V1'],
     risks: risks.length ? risks : ['尚未发现明确阻塞，但需要持续跟踪行动项完成度'],
-    actionItems: actions.map((item) => `${item.task}｜${item.owner}｜${item.due}｜${item.status}`),
+    actionItems: [...recordActionItems, ...actions.map((item) => `${item.task}｜${item.owner}｜${item.due}｜${item.status}`)],
     nextSteps: [
       '下次会议优先检查高优先级行动项完成情况',
       '集中处理仍未确认的问题和有风险任务',
@@ -57,4 +58,29 @@ export function generateNextMeetingFocus(records, actions) {
     openQuestions.length ? `关闭 ${openQuestions.length} 个待确认问题，避免影响交付判断` : '检查是否有新的待确认事项',
     '判断是否需要调整 V1 范围，防止会议结论失焦'
   ];
+}
+
+export function parseMeetingText(rawText) {
+  const lines = rawText
+    .split(/\n|。|；|;|，|,|\r/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return lines.map((content) => ({
+    type: inferRecordType(content),
+    content
+  }));
+}
+
+function inferRecordType(content) {
+  if (hasKeyword(content, ['是否', '需要确认', '待确认'])) return '待确认问题';
+  if (hasKeyword(content, ['风险', '可能', '影响', '阻塞', '不明确'])) return '风险 / 阻塞';
+  if (hasKeyword(content, ['负责', '补充', '完成', '下周', '本周', '截止'])) return '待办事项';
+  if (hasKeyword(content, ['确认', '决定', '暂不', '暂时不做', '优先'])) return '已确认结论';
+  if (hasKeyword(content, ['认为', '讨论', '关注', '范围'])) return '关键讨论';
+  return '关键讨论';
+}
+
+function hasKeyword(content, keywords) {
+  return keywords.some((keyword) => content.includes(keyword));
 }

@@ -8,11 +8,13 @@ import {
   ListChecks,
   MessageSquareText,
   Pencil,
-  ShieldAlert
+  ShieldAlert,
+  Sparkles
 } from 'lucide-react';
 import MeetingReport from './MeetingReport.jsx';
+import { parseMeetingText } from '../utils/mockAi.js';
 
-const recordTypes = ['关键讨论', '已确认决策', '风险 / 阻塞', '待确认问题', '临时行动项'];
+const recordTypes = ['关键讨论', '已确认结论', '已确认决策', '风险 / 阻塞', '待确认问题', '待办事项', '临时行动项'];
 
 const flowSteps = [
   { step: 1, title: '会前准备', target: 'prep-section' },
@@ -36,6 +38,7 @@ export default function MeetingWorkspace({
   onGeneratePrep,
   onGenerateReport,
   onAddRecord,
+  onImportRecords,
   onAddAction
 }) {
   const [recordType, setRecordType] = useState(recordTypes[0]);
@@ -172,10 +175,19 @@ export default function MeetingWorkspace({
             setActionDraft={setActionDraft}
             submitRecord={submitRecord}
             submitAction={submitAction}
+            onImportRecords={onImportRecords}
           />
         )}
 
-        {activeStep === 3 && <MeetingReport report={report} onGenerateReport={onGenerateReport} />}
+        {activeStep === 3 && (
+          <MeetingReport
+            meeting={meeting}
+            report={report}
+            records={records}
+            actions={actions}
+            onGenerateReport={onGenerateReport}
+          />
+        )}
 
         {activeStep === 4 && (
           <FollowUpPanel stats={stats} actions={actions} onViewBoard={() => onStepClick(4, 'action-board')} />
@@ -240,34 +252,113 @@ function RecordsPanel({
   setRecordContent,
   setActionDraft,
   submitRecord,
-  submitAction
+  submitAction,
+  onImportRecords
 }) {
+  const [rawMeetingText, setRawMeetingText] = useState('');
+  const [parsedRecords, setParsedRecords] = useState([]);
+  const [importFeedback, setImportFeedback] = useState('');
+
+  const handleParseText = () => {
+    if (!rawMeetingText.trim()) {
+      setParsedRecords([]);
+      setImportFeedback('请先粘贴会议文本');
+      return;
+    }
+
+    const nextRecords = parseMeetingText(rawMeetingText);
+    setParsedRecords(nextRecords);
+    setImportFeedback(nextRecords.length ? `已生成 ${nextRecords.length} 条结构化记录预览` : '未解析到可导入内容');
+  };
+
+  const handleConfirmImport = () => {
+    if (!parsedRecords.length) {
+      setImportFeedback('请先生成结构化记录预览');
+      return;
+    }
+
+    onImportRecords(parsedRecords);
+    setImportFeedback(`已导入 ${parsedRecords.length} 条结构化会议记录`);
+    setParsedRecords([]);
+    setRawMeetingText('');
+  };
+
   return (
     <div id="records-section" className="scroll-mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel title="会中结构化记录" icon={<MessageSquareText size={18} />}>
-        <form onSubmit={submitRecord} className="space-y-3">
-          <div className="grid gap-2 sm:grid-cols-[160px_minmax(0,1fr)]">
-            <select
-              value={recordType}
-              onChange={(event) => setRecordType(event.target.value)}
-              className="rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand"
-            >
-              {recordTypes.map((type) => (
-                <option key={type}>{type}</option>
-              ))}
-            </select>
-            <input
-              value={recordContent}
-              onChange={(event) => setRecordContent(event.target.value)}
-              placeholder="添加讨论点、决策、风险、待确认问题..."
-              className="rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-brand"
+        <div className="space-y-4">
+          <form onSubmit={submitRecord} className="space-y-3">
+            <p className="text-xs font-semibold text-muted">手动添加记录</p>
+            <div className="grid gap-2 sm:grid-cols-[160px_minmax(0,1fr)]">
+              <select
+                value={recordType}
+                onChange={(event) => setRecordType(event.target.value)}
+                className="rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand"
+              >
+                {recordTypes.map((type) => (
+                  <option key={type}>{type}</option>
+                ))}
+              </select>
+              <input
+                value={recordContent}
+                onChange={(event) => setRecordContent(event.target.value)}
+                placeholder="添加讨论点、结论、风险、待确认问题..."
+                className="rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-brand"
+              />
+            </div>
+            <button className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+              <CirclePlus size={17} />
+              添加记录
+            </button>
+          </form>
+
+          <section className="rounded-md border border-blue-100 bg-blue-50 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold text-brand">粘贴会议文本</p>
+                <p className="mt-1 text-xs text-muted">当前为模拟 AI 解析，基于关键词生成结构化记录预览。</p>
+              </div>
+              <span className="rounded-md border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-brand">Mock AI</span>
+            </div>
+            <textarea
+              value={rawMeetingText}
+              onChange={(event) => setRawMeetingText(event.target.value)}
+              rows={5}
+              placeholder="粘贴原始会议文本，例如：今天讨论了 V1 的功能范围，实时语音转写暂时不做..."
+              className="w-full resize-y rounded-md border border-blue-100 bg-white px-3 py-2 text-sm leading-6 outline-none focus:border-brand"
             />
-          </div>
-          <button className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-            <CirclePlus size={17} />
-            添加记录
-          </button>
-        </form>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleParseText}
+                className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                <Sparkles size={16} />
+                模拟 AI 解析
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmImport}
+                disabled={!parsedRecords.length}
+                className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-brand hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              >
+                确认导入
+              </button>
+              {importFeedback && <span className="text-xs font-semibold text-brand">{importFeedback}</span>}
+            </div>
+            {parsedRecords.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-semibold text-muted">结构化记录预览</p>
+                {parsedRecords.map((item, index) => (
+                  <div key={`${item.type}-${index}`} className="rounded-md border border-blue-100 bg-white p-2">
+                    <span className="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-brand">{item.type}</span>
+                    <p className="mt-2 text-sm leading-6 text-ink">{item.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
 
         <div className="mt-4 max-h-[360px] space-y-2 overflow-auto pr-1 scrollbar-thin">
           {records.map((item) => (
