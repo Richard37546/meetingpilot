@@ -4,15 +4,17 @@ import {
   CheckCircle2,
   Circle,
   CirclePlus,
-  ClipboardList,
   FileText,
   ListChecks,
   MessageSquareText,
-  ShieldAlert
+  Pencil,
+  ShieldAlert,
+  Sparkles
 } from 'lucide-react';
 import MeetingReport from './MeetingReport.jsx';
+import { parseMeetingText } from '../utils/mockAi.js';
 
-const recordTypes = ['关键讨论', '已确认决策', '风险 / 阻塞', '待确认问题', '临时行动项'];
+const recordTypes = ['关键讨论', '已确认结论', '已确认决策', '风险 / 阻塞', '待确认问题', '待办事项', '临时行动项'];
 
 const flowSteps = [
   { step: 1, title: '会前准备', target: 'prep-section' },
@@ -29,12 +31,16 @@ export default function MeetingWorkspace({
   actions,
   stats,
   currentStep,
+  currentStageLabel,
   activeStep,
   onStepClick,
+  onEditMeeting,
   onGeneratePrep,
   onGenerateReport,
   onAddRecord,
-  onAddAction
+  onImportRecords,
+  onAddAction,
+  onArchiveMeeting
 }) {
   const [recordType, setRecordType] = useState(recordTypes[0]);
   const [recordContent, setRecordContent] = useState('');
@@ -67,13 +73,29 @@ export default function MeetingWorkspace({
       <section className="rounded-lg border border-line bg-white p-4 shadow-soft">
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">Meeting Execution Loop</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-semibold tracking-normal text-brand">会议执行闭环</p>
+              <span className="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-accent">
+                当前阶段：{currentStageLabel}
+              </span>
+            </div>
             <h2 className="mt-2 text-lg font-semibold leading-7 text-ink">
-              {meeting.title}｜目标：{meeting.goal}｜阶段：{meeting.status}｜参会人：{meeting.attendees.length} 人
+              {meeting.title}｜目标：{meeting.goal}｜参会人：{meeting.attendees.length} 人
             </h2>
-            <p className="mt-2 text-sm leading-6 text-muted">
-              核心价值：把会议结论变成有负责人、有截止时间、可追踪状态的待办跟进。
-            </p>
+            <div className="mt-2 grid gap-2 text-sm leading-6 text-muted md:grid-cols-2">
+              <p>会议背景：{meeting.background || '暂未填写'}</p>
+              <p>会议时间：{meeting.time || '暂未填写'}</p>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={onEditMeeting}
+                className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-brand hover:bg-blue-100"
+              >
+                <Pencil size={16} />
+                编辑当前会议
+              </button>
+              <p className="self-center text-sm leading-6 text-muted">核心价值：把会议结论变成有负责人、有截止时间、可追踪状态的待办跟进。</p>
+            </div>
           </div>
           <div id="action-summary" className="scroll-mt-4 rounded-md border border-blue-100 bg-blue-50 p-3">
             <p className="text-xs font-semibold text-brand">待办跟进</p>
@@ -91,33 +113,11 @@ export default function MeetingWorkspace({
         </div>
       </section>
 
-      <section className="rounded-lg border border-line bg-white p-4 shadow-soft">
-        <div className="mb-3 flex items-center gap-2">
-          <ClipboardList size={18} className="text-brand" />
-          <h3 className="text-base font-semibold text-ink">如何使用 MeetingPilot</h3>
-        </div>
-        <div className="grid gap-3 text-sm lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="rounded-md border border-line bg-panel p-3">
-            <p className="font-semibold text-ink">只需 3 步</p>
-            <ol className="mt-2 grid gap-1.5 text-muted md:grid-cols-3">
-              <li>1. 填写会议主题、会议目标和参会人</li>
-              <li>2. 会中记录讨论、结论、风险和待办</li>
-              <li>3. 一键生成会议纪要，并进入待办跟进看板</li>
-            </ol>
-          </div>
-          <div className="grid gap-2 text-xs sm:grid-cols-3 lg:grid-cols-1">
-            <Requirement label="必填" text="会议主题、会议目标、参会人" />
-            <Requirement label="推荐" text="会议背景、待讨论问题、会议时间" />
-            <Requirement label="可选" text="会议链接、完整逐字稿、文件资料" />
-          </div>
-        </div>
-      </section>
-
       <section className="rounded-lg border border-line bg-white p-3 shadow-soft">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
           {flowSteps.map((item, index) => {
             const isDone = item.step < currentStep;
-            const isActive = item.step === activeStep;
+            const isActive = item.step === currentStep;
             return (
               <div key={item.step} className="flex flex-1 items-center gap-2">
                 <button
@@ -140,7 +140,7 @@ export default function MeetingWorkspace({
         </div>
       </section>
 
-      {!report && records.length > 0 && (
+      {currentStep === 3 && (
         <section className="rounded-lg border border-blue-100 bg-blue-50 p-3 shadow-soft">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-semibold text-ink">已有 {records.length} 条会议记录，可以生成会议纪要。</p>
@@ -176,10 +176,20 @@ export default function MeetingWorkspace({
             setActionDraft={setActionDraft}
             submitRecord={submitRecord}
             submitAction={submitAction}
+            onImportRecords={onImportRecords}
           />
         )}
 
-        {activeStep === 3 && <MeetingReport report={report} onGenerateReport={onGenerateReport} />}
+        {activeStep === 3 && (
+          <MeetingReport
+            meeting={meeting}
+            report={report}
+            records={records}
+            actions={actions}
+            onGenerateReport={onGenerateReport}
+            onArchiveMeeting={onArchiveMeeting}
+          />
+        )}
 
         {activeStep === 4 && (
           <FollowUpPanel stats={stats} actions={actions} onViewBoard={() => onStepClick(4, 'action-board')} />
@@ -192,15 +202,6 @@ export default function MeetingWorkspace({
         {activeStep !== 3 && <StepSummary title="会议纪要" text={report ? '会议摘要、结论、风险和待办事项已生成。' : '可根据会中记录生成会议纪要。'} onClick={() => onStepClick(3, 'report-section')} />}
       </section>
     </section>
-  );
-}
-
-function Requirement({ label, text }) {
-  return (
-    <div className="rounded-md border border-line bg-white px-3 py-2">
-      <span className="font-semibold text-ink">{label}：</span>
-      <span className="text-muted">{text}</span>
-    </div>
   );
 }
 
@@ -253,34 +254,113 @@ function RecordsPanel({
   setRecordContent,
   setActionDraft,
   submitRecord,
-  submitAction
+  submitAction,
+  onImportRecords
 }) {
+  const [rawMeetingText, setRawMeetingText] = useState('');
+  const [parsedRecords, setParsedRecords] = useState([]);
+  const [importFeedback, setImportFeedback] = useState('');
+
+  const handleParseText = () => {
+    if (!rawMeetingText.trim()) {
+      setParsedRecords([]);
+      setImportFeedback('请先粘贴会议文本');
+      return;
+    }
+
+    const nextRecords = parseMeetingText(rawMeetingText);
+    setParsedRecords(nextRecords);
+    setImportFeedback(nextRecords.length ? `已生成 ${nextRecords.length} 条结构化记录预览` : '未解析到可导入内容');
+  };
+
+  const handleConfirmImport = () => {
+    if (!parsedRecords.length) {
+      setImportFeedback('请先生成结构化记录预览');
+      return;
+    }
+
+    onImportRecords(parsedRecords);
+    setImportFeedback(`已导入 ${parsedRecords.length} 条结构化会议记录`);
+    setParsedRecords([]);
+    setRawMeetingText('');
+  };
+
   return (
     <div id="records-section" className="scroll-mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel title="会中结构化记录" icon={<MessageSquareText size={18} />}>
-        <form onSubmit={submitRecord} className="space-y-3">
-          <div className="grid gap-2 sm:grid-cols-[160px_minmax(0,1fr)]">
-            <select
-              value={recordType}
-              onChange={(event) => setRecordType(event.target.value)}
-              className="rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand"
-            >
-              {recordTypes.map((type) => (
-                <option key={type}>{type}</option>
-              ))}
-            </select>
-            <input
-              value={recordContent}
-              onChange={(event) => setRecordContent(event.target.value)}
-              placeholder="添加讨论点、决策、风险、待确认问题..."
-              className="rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-brand"
+        <div className="space-y-4">
+          <form onSubmit={submitRecord} className="space-y-3">
+            <p className="text-xs font-semibold text-muted">手动添加记录</p>
+            <div className="grid gap-2 sm:grid-cols-[160px_minmax(0,1fr)]">
+              <select
+                value={recordType}
+                onChange={(event) => setRecordType(event.target.value)}
+                className="rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand"
+              >
+                {recordTypes.map((type) => (
+                  <option key={type}>{type}</option>
+                ))}
+              </select>
+              <input
+                value={recordContent}
+                onChange={(event) => setRecordContent(event.target.value)}
+                placeholder="添加讨论点、结论、风险、待确认问题..."
+                className="rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-brand"
+              />
+            </div>
+            <button className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+              <CirclePlus size={17} />
+              添加记录
+            </button>
+          </form>
+
+          <section className="rounded-md border border-blue-100 bg-blue-50 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold text-brand">粘贴会议文本</p>
+                <p className="mt-1 text-xs text-muted">当前为模拟 AI 解析，基于关键词生成结构化记录预览。</p>
+              </div>
+              <span className="rounded-md border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-brand">Mock AI</span>
+            </div>
+            <textarea
+              value={rawMeetingText}
+              onChange={(event) => setRawMeetingText(event.target.value)}
+              rows={5}
+              placeholder="粘贴原始会议文本，例如：今天讨论了 V1 的功能范围，实时语音转写暂时不做..."
+              className="w-full resize-y rounded-md border border-blue-100 bg-white px-3 py-2 text-sm leading-6 outline-none focus:border-brand"
             />
-          </div>
-          <button className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-            <CirclePlus size={17} />
-            添加记录
-          </button>
-        </form>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleParseText}
+                className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                <Sparkles size={16} />
+                模拟 AI 解析
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmImport}
+                disabled={!parsedRecords.length}
+                className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-brand hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              >
+                确认导入
+              </button>
+              {importFeedback && <span className="text-xs font-semibold text-brand">{importFeedback}</span>}
+            </div>
+            {parsedRecords.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-semibold text-muted">结构化记录预览</p>
+                {parsedRecords.map((item, index) => (
+                  <div key={`${item.type}-${index}`} className="rounded-md border border-blue-100 bg-white p-2">
+                    <span className="rounded bg-blue-50 px-2 py-1 text-xs font-medium text-brand">{item.type}</span>
+                    <p className="mt-2 text-sm leading-6 text-ink">{item.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
 
         <div className="mt-4 max-h-[360px] space-y-2 overflow-auto pr-1 scrollbar-thin">
           {records.map((item) => (

@@ -1,11 +1,78 @@
-import { FileText } from 'lucide-react';
+import { useState } from 'react';
+import { Archive, Copy, Download, FileText } from 'lucide-react';
+import {
+  buildMarkdownFileName,
+  buildMeetingReportMarkdown,
+  copyTextToClipboard,
+  downloadMarkdown
+} from '../utils/markdown.js';
 
-export default function MeetingReport({ report, onGenerateReport }) {
+export default function MeetingReport({ meeting, report, records, actions, onGenerateReport, onArchiveMeeting }) {
+  const [feedback, setFeedback] = useState('');
+
+  const buildMarkdown = () => buildMeetingReportMarkdown({ meeting, report, records, actions });
+
+  const handleCopyReport = async () => {
+    if (!report) {
+      setFeedback('请先生成会议纪要');
+      return;
+    }
+
+    const result = await copyTextToClipboard(buildMarkdown());
+    setFeedback(result.ok ? '已复制会议纪要' : result.message);
+  };
+
+  const handleExportReport = () => {
+    if (!report) {
+      setFeedback('请先生成会议纪要');
+      return;
+    }
+
+    downloadMarkdown(buildMarkdownFileName('meetingpilot', meeting.title), buildMarkdown());
+    setFeedback('已导出会议纪要');
+  };
+
+  const handleArchiveMeeting = () => {
+    onArchiveMeeting();
+    setFeedback('已归档当前会议，重复归档会产生新的历史记录');
+  };
+
   return (
     <section id="report-section" className="scroll-mt-4 rounded-lg border border-line bg-white p-4">
-      <div className="mb-4 flex items-center gap-2">
-        <FileText size={18} className="text-brand" />
-        <h3 className="text-base font-semibold text-ink">会议纪要与结论</h3>
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <FileText size={18} className="text-brand" />
+          <h3 className="text-base font-semibold text-ink">会议纪要与结论</h3>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleCopyReport}
+            disabled={!report}
+            className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-brand hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+          >
+            <Copy size={16} />
+            复制会议纪要
+          </button>
+          <button
+            type="button"
+            onClick={handleExportReport}
+            disabled={!report}
+            className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            <Download size={16} />
+            导出 Markdown
+          </button>
+          <button
+            type="button"
+            onClick={handleArchiveMeeting}
+            className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-accent hover:bg-emerald-100"
+          >
+            <Archive size={16} />
+            归档当前会议
+          </button>
+          {feedback && <span className="text-xs font-semibold text-brand">{feedback}</span>}
+        </div>
       </div>
       {report ? (
         <div className="space-y-4 text-sm">
