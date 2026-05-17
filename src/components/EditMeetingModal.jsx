@@ -19,7 +19,7 @@ function splitLines(value) {
     .filter(Boolean);
 }
 
-export default function EditMeetingModal({ meeting, isOpen, onClose, onSave }) {
+export default function EditMeetingModal({ meeting, isOpen, mode = 'edit', onClose, onSave }) {
   const [draft, setDraft] = useState({
     title: '',
     goal: '',
@@ -32,16 +32,29 @@ export default function EditMeetingModal({ meeting, isOpen, onClose, onSave }) {
 
   useEffect(() => {
     if (!isOpen) return;
+    if (mode === 'create') {
+      setDraft({
+        title: '',
+        goal: '',
+        attendeesText: '',
+        background: '',
+        questionsText: '',
+        time: ''
+      });
+      setError('');
+      return;
+    }
+
     setDraft({
-      title: meeting.title ?? '',
-      goal: meeting.goal ?? '',
-      attendeesText: joinLines(meeting.attendees),
-      background: meeting.background ?? '',
-      questionsText: joinLines(meeting.questions),
-      time: meeting.time ?? ''
+      title: meeting?.title ?? '',
+      goal: meeting?.goal ?? '',
+      attendeesText: joinLines(meeting?.attendees),
+      background: meeting?.background ?? '',
+      questionsText: joinLines(meeting?.questions),
+      time: meeting?.time ?? ''
     });
     setError('');
-  }, [isOpen, meeting]);
+  }, [isOpen, meeting, mode]);
 
   if (!isOpen) return null;
 
@@ -74,8 +87,12 @@ export default function EditMeetingModal({ meeting, isOpen, onClose, onSave }) {
       <section className="max-h-[calc(100vh-3rem)] w-full max-w-2xl overflow-y-auto rounded-lg border border-line bg-white p-5 shadow-soft scrollbar-thin">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-ink">编辑当前会议</h2>
-            <p className="mt-1 text-sm leading-6 text-muted">更新会议基本信息不会清空已有会中记录、会议纪要和待办事项。</p>
+            <h2 className="text-lg font-semibold text-ink">{mode === 'create' ? '新建会议' : '编辑当前会议'}</h2>
+            <p className="mt-1 text-sm leading-6 text-muted">
+              {mode === 'create'
+                ? '填写基础信息后，会自动切换到新会议并从会前准备开始。'
+                : '更新会议基本信息不会清空已有会中记录、会议纪要和待办事项。'}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -155,7 +172,7 @@ export default function EditMeetingModal({ meeting, isOpen, onClose, onSave }) {
               className="inline-flex items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 font-semibold text-white hover:bg-blue-700"
             >
               <Save size={17} />
-              保存并更新会议
+              {mode === 'create' ? '创建会议' : '保存并更新会议'}
             </button>
           </div>
         </form>
