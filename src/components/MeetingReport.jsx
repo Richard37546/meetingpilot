@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Download, FileText } from 'lucide-react';
+import { Archive, Copy, Download, FileText } from 'lucide-react';
 import {
   buildMarkdownFileName,
   buildMeetingReportMarkdown,
@@ -7,7 +7,7 @@ import {
   downloadMarkdown
 } from '../utils/markdown.js';
 
-export default function MeetingReport({ meeting, report, records, actions, onGenerateReport }) {
+export default function MeetingReport({ meeting, report, records, actions, onGenerateReport, onArchiveMeeting }) {
   const [feedback, setFeedback] = useState('');
 
   const buildMarkdown = () => buildMeetingReportMarkdown({ meeting, report, records, actions });
@@ -30,6 +30,11 @@ export default function MeetingReport({ meeting, report, records, actions, onGen
 
     downloadMarkdown(buildMarkdownFileName('meetingpilot', meeting.title), buildMarkdown());
     setFeedback('已导出会议纪要');
+  };
+
+  const handleArchiveMeeting = () => {
+    onArchiveMeeting();
+    setFeedback('已归档当前会议，重复归档会产生新的历史记录');
   };
 
   return (
@@ -57,6 +62,14 @@ export default function MeetingReport({ meeting, report, records, actions, onGen
           >
             <Download size={16} />
             导出 Markdown
+          </button>
+          <button
+            type="button"
+            onClick={handleArchiveMeeting}
+            className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-accent hover:bg-emerald-100"
+          >
+            <Archive size={16} />
+            归档当前会议
           </button>
           {feedback && <span className="text-xs font-semibold text-brand">{feedback}</span>}
         </div>

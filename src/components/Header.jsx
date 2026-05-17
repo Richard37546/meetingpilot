@@ -2,7 +2,9 @@ import { RotateCcw, Sparkles } from 'lucide-react';
 
 const navItems = [
   { key: 'home', label: '首页' },
-  { key: 'guide', label: '使用说明' }
+  { key: 'guide', label: '使用说明' },
+  { key: 'history', label: '历史会议' },
+  { key: 'settings', label: '设置' }
 ];
 
 export default function Header({

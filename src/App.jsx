@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import Header from './components/Header.jsx';
 import GuidePage from './components/GuidePage.jsx';
+import HistoryPage from './components/HistoryPage.jsx';
+import SettingsPage from './components/SettingsPage.jsx';
 import MeetingSidebar from './components/MeetingSidebar.jsx';
 import MeetingWorkspace from './components/MeetingWorkspace.jsx';
 import AiAssistantPanel from './components/AiAssistantPanel.jsx';
 import ActionBoard from './components/ActionBoard.jsx';
 import EditMeetingModal from './components/EditMeetingModal.jsx';
 import { initialActions, initialRecords, sampleMeeting } from './data/sampleMeeting.js';
+import { createHistorySnapshot, loadHistoryMeetings, saveHistoryMeetings, sortHistory } from './utils/history.js';
 import { generatePrepCard, generateReport } from './utils/mockAi.js';
 
 const STORAGE_KEY = 'meetingpilot-demo-state';
@@ -32,12 +35,14 @@ function loadSavedState() {
 
 export default function App() {
   const savedState = useMemo(() => loadSavedState(), []);
+  const savedHistory = useMemo(() => loadHistoryMeetings(), []);
   const [activePage, setActivePage] = useState('home');
   const [meeting, setMeeting] = useState(savedState?.meeting ?? sampleMeeting);
   const [records, setRecords] = useState(savedState?.records ?? initialRecords);
   const [actions, setActions] = useState(savedState?.actions ?? initialActions);
   const [prepCard, setPrepCard] = useState(savedState?.prepCard ?? null);
   const [report, setReport] = useState(savedState?.report ?? null);
+  const [historyMeetings, setHistoryMeetings] = useState(savedHistory);
   const [activeMeetingId, setActiveMeetingId] = useState(DEFAULT_MEETING_LIST_ID);
   const [selectedStep, setSelectedStep] = useState(null);
   const [isEditMeetingOpen, setIsEditMeetingOpen] = useState(false);
@@ -49,6 +54,14 @@ export default function App() {
       // localStorage 不可用时仍允许页面正常使用，只是不持久化演示状态。
     }
   }, [meeting, records, actions, prepCard, report]);
+
+  useEffect(() => {
+    try {
+      saveHistoryMeetings(historyMeetings);
+    } catch {
+      // 历史记录保存失败时不影响当前会议继续编辑。
+    }
+  }, [historyMeetings]);
 
   const stats = useMemo(() => {
     const unfinished = actions.filter((item) => item.status !== '已完成').length;
@@ -159,6 +172,11 @@ export default function App() {
     setActions((current) => current.map((item) => (item.id === id ? { ...item, status } : item)));
   };
 
+  const handleArchiveMeeting = () => {
+    const snapshot = createHistorySnapshot({ meeting, records, report, todos: actions });
+    setHistoryMeetings((current) => sortHistory([snapshot, ...current]));
+  };
+
   const handleResetDemo = () => {
     localStorage.removeItem(STORAGE_KEY);
     setRecords(initialRecords);
@@ -185,6 +203,10 @@ export default function App() {
 
       {activePage === 'guide' ? (
         <GuidePage />
+      ) : activePage === 'history' ? (
+        <HistoryPage historyMeetings={historyMeetings} />
+      ) : activePage === 'settings' ? (
+        <SettingsPage />
       ) : (
         <>
           <section className="mx-auto grid max-w-[1600px] grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-[280px_minmax(0,1fr)_340px]">
@@ -212,6 +234,7 @@ export default function App() {
               onAddRecord={handleAddRecord}
               onImportRecords={handleImportRecords}
               onAddAction={handleAddAction}
+              onArchiveMeeting={handleArchiveMeeting}
             />
             <AiAssistantPanel
               meeting={meeting}

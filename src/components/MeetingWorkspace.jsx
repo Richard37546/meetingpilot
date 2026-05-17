@@ -39,7 +39,8 @@ export default function MeetingWorkspace({
   onGenerateReport,
   onAddRecord,
   onImportRecords,
-  onAddAction
+  onAddAction,
+  onArchiveMeeting
 }) {
   const [recordType, setRecordType] = useState(recordTypes[0]);
   const [recordContent, setRecordContent] = useState('');
@@ -186,6 +187,7 @@ export default function MeetingWorkspace({
             records={records}
             actions={actions}
             onGenerateReport={onGenerateReport}
+            onArchiveMeeting={onArchiveMeeting}
           />
         )}
 
