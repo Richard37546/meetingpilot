@@ -7,7 +7,7 @@ export default function AiAssistantPanel({ meeting, records, actions, stats, onG
   const nextFocus = generateNextMeetingFocus(records, actions);
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1 scrollbar-thin">
+    <aside className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto lg:pb-2 lg:pr-1 scrollbar-thin">
       <section className="rounded-lg border border-line bg-white p-4 shadow-soft">
         <div className="mb-4 flex items-center gap-2">
           <Bot size={18} className="text-brand" />
@@ -16,7 +16,7 @@ export default function AiAssistantPanel({ meeting, records, actions, stats, onG
         <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
           <p className="text-xs font-semibold text-brand">当前会议判断</p>
           <p className="mt-2 text-sm leading-6 text-ink">
-            {meeting.title} 已具备完整会议闭环，应继续压缩 V1 范围，把结论沉淀为可追踪行动项。
+            {meeting.title} 应围绕会议目标持续收敛讨论，把确认结论沉淀为可追踪行动项。
           </p>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">

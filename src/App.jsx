@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import Header from './components/Header.jsx';
+import GuidePage from './components/GuidePage.jsx';
 import MeetingSidebar from './components/MeetingSidebar.jsx';
 import MeetingWorkspace from './components/MeetingWorkspace.jsx';
 import AiAssistantPanel from './components/AiAssistantPanel.jsx';
 import ActionBoard from './components/ActionBoard.jsx';
+import EditMeetingModal from './components/EditMeetingModal.jsx';
 import { initialActions, initialRecords, sampleMeeting } from './data/sampleMeeting.js';
 import { generatePrepCard, generateReport } from './utils/mockAi.js';
 
 const STORAGE_KEY = 'meetingpilot-demo-state';
 const STORAGE_VERSION = 1;
+const DEFAULT_MEETING_LIST_ID = sampleMeeting.meetings[0]?.id ?? sampleMeeting.id;
+
+const workflowStages = {
+  1: 'Step 1 会前准备',
+  2: 'Step 2 会中记录',
+  3: 'Step 3 会议纪要',
+  4: 'Step 4 待办跟进'
+};
 
 function loadSavedState() {
   try {
@@ -22,20 +32,23 @@ function loadSavedState() {
 
 export default function App() {
   const savedState = useMemo(() => loadSavedState(), []);
+  const [activePage, setActivePage] = useState('home');
+  const [meeting, setMeeting] = useState(savedState?.meeting ?? sampleMeeting);
   const [records, setRecords] = useState(savedState?.records ?? initialRecords);
   const [actions, setActions] = useState(savedState?.actions ?? initialActions);
   const [prepCard, setPrepCard] = useState(savedState?.prepCard ?? null);
   const [report, setReport] = useState(savedState?.report ?? null);
-  const [activeMeetingId, setActiveMeetingId] = useState(sampleMeeting.id);
-  const [activeStep, setActiveStep] = useState(null);
+  const [activeMeetingId, setActiveMeetingId] = useState(DEFAULT_MEETING_LIST_ID);
+  const [selectedStep, setSelectedStep] = useState(null);
+  const [isEditMeetingOpen, setIsEditMeetingOpen] = useState(false);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, records, actions, prepCard, report }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, meeting, records, actions, prepCard, report }));
     } catch {
       // localStorage 不可用时仍允许页面正常使用，只是不持久化演示状态。
     }
-  }, [records, actions, prepCard, report]);
+  }, [meeting, records, actions, prepCard, report]);
 
   const stats = useMemo(() => {
     const unfinished = actions.filter((item) => item.status !== '已完成').length;
@@ -53,6 +66,8 @@ export default function App() {
     return 4;
   }, [prepCard, records.length, report]);
 
+  const currentStageLabel = workflowStages[currentStep];
+
   const primaryAction = useMemo(() => {
     if (!prepCard) {
       return { label: '生成会前准备清单', target: 'prep-section', action: 'prep' };
@@ -66,26 +81,26 @@ export default function App() {
     return { label: '查看待办跟进', target: 'action-board', action: 'scroll' };
   }, [prepCard, records.length, report]);
 
-  const visibleStep = activeStep ?? currentStep;
+  const visibleStep = selectedStep ?? currentStep;
 
   const scrollToSection = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleStepSelect = (step, target) => {
-    setActiveStep(step);
+    setSelectedStep(step);
     window.setTimeout(() => scrollToSection(target), 0);
   };
 
   const handleGeneratePrep = () => {
-    setPrepCard(generatePrepCard(sampleMeeting));
-    setActiveStep(1);
+    setPrepCard(generatePrepCard(meeting));
+    setSelectedStep(1);
     window.setTimeout(() => scrollToSection('prep-section'), 0);
   };
 
   const handleGenerateReport = () => {
-    setReport(generateReport(sampleMeeting, records, actions));
-    setActiveStep(3);
+    setReport(generateReport(meeting, records, actions));
+    setSelectedStep(3);
     window.setTimeout(() => scrollToSection('report-section'), 0);
   };
 
@@ -98,7 +113,30 @@ export default function App() {
       handleGenerateReport();
       return;
     }
+    if (primaryAction.action === 'scroll' && primaryAction.target === 'records-section') {
+      setSelectedStep(2);
+    }
+    if (primaryAction.action === 'scroll' && primaryAction.target === 'action-board') {
+      setSelectedStep(4);
+    }
     scrollToSection(primaryAction.target);
+  };
+
+  const handleSaveMeeting = (draft) => {
+    setActiveMeetingId(DEFAULT_MEETING_LIST_ID);
+    setMeeting((current) => {
+      const updatedMeetings = (current.meetings ?? []).map((item, index) => {
+        const shouldUpdate = item.id === DEFAULT_MEETING_LIST_ID || index === 0;
+        return shouldUpdate ? { ...item, title: draft.title, status: '进行中' } : item;
+      });
+
+      return {
+        ...current,
+        ...draft,
+        status: current.status,
+        meetings: updatedMeetings.length ? updatedMeetings : current.meetings
+      };
+    });
   };
 
   const handleAddRecord = (record) => {
@@ -119,54 +157,75 @@ export default function App() {
     setActions(initialActions);
     setPrepCard(null);
     setReport(null);
-    setActiveMeetingId(sampleMeeting.id);
-    setActiveStep(null);
+    setMeeting(sampleMeeting);
+    setActiveMeetingId(DEFAULT_MEETING_LIST_ID);
+    setSelectedStep(null);
+    setActivePage('home');
     window.setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
   };
 
   return (
     <main className="min-h-screen bg-slate-100">
       <Header
-        meeting={sampleMeeting}
+        activePage={activePage}
+        currentStageLabel={currentStageLabel}
         primaryActionLabel={primaryAction.label}
+        onPageChange={setActivePage}
         onPrimaryAction={handlePrimaryAction}
         onResetDemo={handleResetDemo}
       />
 
-      <section className="mx-auto grid max-w-[1600px] grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-[280px_minmax(0,1fr)_340px]">
-        <MeetingSidebar
-          meeting={sampleMeeting}
-          activeMeetingId={activeMeetingId}
-          onSelectMeeting={setActiveMeetingId}
-        />
-        <MeetingWorkspace
-          meeting={sampleMeeting}
-          prepCard={prepCard}
-          records={records}
-          report={report}
-          actions={actions}
-          stats={stats}
-          currentStep={currentStep}
-          activeStep={visibleStep}
-          onStepClick={handleStepSelect}
-          onGeneratePrep={handleGeneratePrep}
-          onGenerateReport={handleGenerateReport}
-          onAddRecord={handleAddRecord}
-          onAddAction={handleAddAction}
-        />
-        <AiAssistantPanel
-          meeting={sampleMeeting}
-          records={records}
-          actions={actions}
-          stats={stats}
-          onGeneratePrep={handleGeneratePrep}
-          onGenerateReport={handleGenerateReport}
-        />
-      </section>
+      {activePage === 'guide' ? (
+        <GuidePage />
+      ) : (
+        <>
+          <section className="mx-auto grid max-w-[1600px] grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-[280px_minmax(0,1fr)_340px]">
+            <MeetingSidebar
+              meeting={meeting}
+              activeMeetingId={activeMeetingId}
+              currentStageLabel={currentStageLabel}
+              onSelectMeeting={setActiveMeetingId}
+              onEditMeeting={() => setIsEditMeetingOpen(true)}
+            />
+            <MeetingWorkspace
+              meeting={meeting}
+              prepCard={prepCard}
+              records={records}
+              report={report}
+              actions={actions}
+              stats={stats}
+              currentStep={currentStep}
+              currentStageLabel={currentStageLabel}
+              activeStep={visibleStep}
+              onStepClick={handleStepSelect}
+              onEditMeeting={() => setIsEditMeetingOpen(true)}
+              onGeneratePrep={handleGeneratePrep}
+              onGenerateReport={handleGenerateReport}
+              onAddRecord={handleAddRecord}
+              onAddAction={handleAddAction}
+            />
+            <AiAssistantPanel
+              meeting={meeting}
+              records={records}
+              actions={actions}
+              stats={stats}
+              onGeneratePrep={handleGeneratePrep}
+              onGenerateReport={handleGenerateReport}
+            />
+          </section>
 
-      <section id="action-board" className="scroll-mt-4 mx-auto max-w-[1600px] px-4 pb-6">
-        <ActionBoard actions={actions} onStatusChange={handleStatusChange} />
-      </section>
+          <section id="action-board" className="scroll-mt-4 mx-auto max-w-[1600px] px-4 pb-6">
+            <ActionBoard actions={actions} onStatusChange={handleStatusChange} />
+          </section>
+        </>
+      )}
+
+      <EditMeetingModal
+        meeting={meeting}
+        isOpen={isEditMeetingOpen}
+        onClose={() => setIsEditMeetingOpen(false)}
+        onSave={handleSaveMeeting}
+      />
     </main>
   );
 }

@@ -4,10 +4,10 @@ import {
   CheckCircle2,
   Circle,
   CirclePlus,
-  ClipboardList,
   FileText,
   ListChecks,
   MessageSquareText,
+  Pencil,
   ShieldAlert
 } from 'lucide-react';
 import MeetingReport from './MeetingReport.jsx';
@@ -29,8 +29,10 @@ export default function MeetingWorkspace({
   actions,
   stats,
   currentStep,
+  currentStageLabel,
   activeStep,
   onStepClick,
+  onEditMeeting,
   onGeneratePrep,
   onGenerateReport,
   onAddRecord,
@@ -67,13 +69,29 @@ export default function MeetingWorkspace({
       <section className="rounded-lg border border-line bg-white p-4 shadow-soft">
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">Meeting Execution Loop</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-semibold tracking-normal text-brand">会议执行闭环</p>
+              <span className="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-accent">
+                当前阶段：{currentStageLabel}
+              </span>
+            </div>
             <h2 className="mt-2 text-lg font-semibold leading-7 text-ink">
-              {meeting.title}｜目标：{meeting.goal}｜阶段：{meeting.status}｜参会人：{meeting.attendees.length} 人
+              {meeting.title}｜目标：{meeting.goal}｜参会人：{meeting.attendees.length} 人
             </h2>
-            <p className="mt-2 text-sm leading-6 text-muted">
-              核心价值：把会议结论变成有负责人、有截止时间、可追踪状态的待办跟进。
-            </p>
+            <div className="mt-2 grid gap-2 text-sm leading-6 text-muted md:grid-cols-2">
+              <p>会议背景：{meeting.background || '暂未填写'}</p>
+              <p>会议时间：{meeting.time || '暂未填写'}</p>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={onEditMeeting}
+                className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-brand hover:bg-blue-100"
+              >
+                <Pencil size={16} />
+                编辑当前会议
+              </button>
+              <p className="self-center text-sm leading-6 text-muted">核心价值：把会议结论变成有负责人、有截止时间、可追踪状态的待办跟进。</p>
+            </div>
           </div>
           <div id="action-summary" className="scroll-mt-4 rounded-md border border-blue-100 bg-blue-50 p-3">
             <p className="text-xs font-semibold text-brand">待办跟进</p>
@@ -91,33 +109,11 @@ export default function MeetingWorkspace({
         </div>
       </section>
 
-      <section className="rounded-lg border border-line bg-white p-4 shadow-soft">
-        <div className="mb-3 flex items-center gap-2">
-          <ClipboardList size={18} className="text-brand" />
-          <h3 className="text-base font-semibold text-ink">如何使用 MeetingPilot</h3>
-        </div>
-        <div className="grid gap-3 text-sm lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="rounded-md border border-line bg-panel p-3">
-            <p className="font-semibold text-ink">只需 3 步</p>
-            <ol className="mt-2 grid gap-1.5 text-muted md:grid-cols-3">
-              <li>1. 填写会议主题、会议目标和参会人</li>
-              <li>2. 会中记录讨论、结论、风险和待办</li>
-              <li>3. 一键生成会议纪要，并进入待办跟进看板</li>
-            </ol>
-          </div>
-          <div className="grid gap-2 text-xs sm:grid-cols-3 lg:grid-cols-1">
-            <Requirement label="必填" text="会议主题、会议目标、参会人" />
-            <Requirement label="推荐" text="会议背景、待讨论问题、会议时间" />
-            <Requirement label="可选" text="会议链接、完整逐字稿、文件资料" />
-          </div>
-        </div>
-      </section>
-
       <section className="rounded-lg border border-line bg-white p-3 shadow-soft">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
           {flowSteps.map((item, index) => {
             const isDone = item.step < currentStep;
-            const isActive = item.step === activeStep;
+            const isActive = item.step === currentStep;
             return (
               <div key={item.step} className="flex flex-1 items-center gap-2">
                 <button
@@ -140,7 +136,7 @@ export default function MeetingWorkspace({
         </div>
       </section>
 
-      {!report && records.length > 0 && (
+      {currentStep === 3 && (
         <section className="rounded-lg border border-blue-100 bg-blue-50 p-3 shadow-soft">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-semibold text-ink">已有 {records.length} 条会议记录，可以生成会议纪要。</p>
@@ -192,15 +188,6 @@ export default function MeetingWorkspace({
         {activeStep !== 3 && <StepSummary title="会议纪要" text={report ? '会议摘要、结论、风险和待办事项已生成。' : '可根据会中记录生成会议纪要。'} onClick={() => onStepClick(3, 'report-section')} />}
       </section>
     </section>
-  );
-}
-
-function Requirement({ label, text }) {
-  return (
-    <div className="rounded-md border border-line bg-white px-3 py-2">
-      <span className="font-semibold text-ink">{label}：</span>
-      <span className="text-muted">{text}</span>
-    </div>
   );
 }
 

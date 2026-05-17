@@ -4,6 +4,7 @@ export const sampleMeeting = {
   status: '会中推进中',
   stage: '会前准备 · 会中记录 · 会议纪要 · 待办跟进',
   goal: '确认 V1 版本核心功能、负责人和上线排期',
+  time: '周三 15:00',
   attendees: ['产品经理', '设计师', '前端', '后端', '测试'],
   background: '当前需求池较多，需要确定第一批上线范围',
   questions: [
