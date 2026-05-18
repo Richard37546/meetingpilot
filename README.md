@@ -41,3 +41,5 @@ npm run build
 3. Framework Preset 选择 `Vite`。
 4. Build Command 使用 `npm run build`。
 5. Output Directory 使用 `dist`。
+
+链接：https://richard37546.github.io/meetingpilot/
